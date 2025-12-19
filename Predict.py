@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 import os, argparse
 import imageio
-from network.VDLNet import VDLNet
+from network.VDLNetsam import VDLNetsam, TextEncoder
 from setting.VLdataLoader import test_dataset
 from tqdm import tqdm
 import time
@@ -13,16 +13,16 @@ import cv2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 parser = argparse.ArgumentParser()
 parser.add_argument("--test_path", type=str, 
-        default='../Datasets/RGB-DSOD11/RGB-DSOD/', 
+        default='/fuyuxiang/Projects/CLS/Datasets/RGB-DSOD11/RGB-DSOD/', 
         help='Name of dataset')
 parser.add_argument('--testsize', type=int, default=256, help='testing size')
-parser.add_argument("--model", type=str, default='VDLNet',
+parser.add_argument("--model", type=str, default='VDLNetsam',
         help='model name:[VDLNet]')
 parser.add_argument('--visual_encoder', type=str, default='convnext_base', 
                     help='ConvNext backbone: [convnext_base]')
-parser.add_argument("--smap_save", type=str, default='../Sal_Preds/', help='save_path name')
+parser.add_argument("--smap_save", type=str, default='../Abla_Preds/', help='save_path name')
 parser.add_argument("--load", type=str,
-            default="",
+            default=None,
               help="restore from checkpoint")
 opt = parser.parse_args()
 
@@ -33,7 +33,7 @@ def create_folder(save_path):
         print(f"Create Folder [“{save_path}”].")
     return save_path
 
-model = eval(opt.model)(visual_encoder_name=opt.visual_encoder)
+model = eval(opt.model)(encoder_name=opt.visual_encoder)
 
 if opt.load is not None and os.path.isfile(opt.load):
     checkpoint = torch.load(opt.load, map_location=torch.device('cpu'))
@@ -50,9 +50,9 @@ for dataset in test_datasets:
     # load data
     data_path  = opt.test_path + dataset
     img_path = os.path.join(data_path, 'test_images/')
-    depth_path = os.path.join(data_path, 'test_depth/')
+    depth_path = os.path.join(data_path, 'gen_depth/')
     mask_path = os.path.join(data_path, 'test_masks/')
-    text_path = os.path.join(data_path, 'test_text/')
+    text_path = os.path.join(data_path, 'test_text_oct/')
 
     test_loader = test_dataset(img_path, depth_path, mask_path, text_path, opt.testsize)
     method=opt.load.split('/')[-1].split('.')[0]
