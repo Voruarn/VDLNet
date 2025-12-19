@@ -1,28 +1,48 @@
 import torch
-from network.VDLNet import VDLNet
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from network.VDLNetsam import VDLNetsam, TextEncoder
 
 def test_model():
     torch.manual_seed(42)
-    model = VDLNet(visual_encoder_name='convnext_base').to(device)
-
+    model = VDLNetsam()
+    text_encoder =  TextEncoder("ViT-B/16")
+    text_encoder.eval()
+    
     batch_size = 2
-    img_size = 256
-    rgb_img = torch.randn(batch_size, 3, img_size, img_size).to(device)  
-    depth_img = torch.randn(batch_size, 1, img_size, img_size).to(device)
+    height, width = 256, 256  
+    rgb = torch.randn(batch_size, 3, height, width)  # RGB图像 (B, 3, H, W)
+    depth = torch.randn(batch_size, 1, height, width)  # 深度图 (B, 1, H, W)
+    target = torch.randint(0, 1, (batch_size, 1, height, width), dtype=torch.float32)  # 目标显著性图
+
     texts = [
-        "a red car in the foreground",  
-        "a person standing near the door"
+        "A salient object in the center of the image with clear edges",
+        "A small object on the left side, distinct from the background"
     ]
+    
+    model.train()
 
-    with torch.no_grad():
-        saliency_map = model(rgb_img, depth_img, texts)
+    print("=== 训练模式测试 ===")
+    print(f"输入RGB形状: {rgb.shape}")
+    print(f"输入深度形状: {depth.shape}")
+    print(f"输入文本数量: {len(texts)}")
 
-    print("Saliency Map Shape:", saliency_map.shape)
+    if torch.cuda.is_available():
+        model = model.cuda()
+        rgb_cuda = rgb.cuda()
+        depth_cuda = depth.cuda()
+        target_cuda = target.cuda()
+
+        model.train()
+        texts_feat = text_encoder(texts).float()
+        outputs_cuda = model(rgb_cuda, depth_cuda, texts_feat, target_cuda)
+        print("\n=== CUDA训练模式测试 ===")
+        
+        model.eval()
+        with torch.no_grad():
+            outputs_cuda = model(rgb_cuda, depth_cuda, texts_feat)
+        print("=== CUDA推理模式测试 ===")
+        print(f"CUDA推理输出形状: {outputs_cuda.shape}")
 
 if __name__ == "__main__":
-    print("Model Test...")
+    print("TAGNet Test...")
     test_model()
     print("Test Done !")
